@@ -26,7 +26,7 @@ steps:
         /kaniko/executor 
         --context /drone/src/api 
         --dockerfile /drone/src/api/dockerfile
-        --destination $DESTINATION_IMAGE 
+        --destination $API_DESTINATION_IMAGE 
         --customPlatform=linux/amd64
         --customPlatform=linux/arm64
         --digest-file=$API_DIGEST_FILE
@@ -35,7 +35,7 @@ steps:
         --cache=true
         --use-new-run
     environment:
-      DESTINATION_IMAGE:
+      API_DESTINATION_IMAGE:
         from_secret: api_image
     volumes:
       - name: digest-folder
@@ -59,7 +59,7 @@ steps:
         /kaniko/executor 
         --context /app-build
         --dockerfile /drone/src/ui/docker/Dockerfile
-        --destination $DESTINATION_IMAGE 
+        --destination $UI_DESTINATION_IMAGE 
         --customPlatform=linux/amd64
         --customPlatform=linux/arm64
         --digest-file=$UI_DIGEST_FILE
@@ -68,27 +68,28 @@ steps:
         --cache=true
         --use-new-run
     environment:
-      DESTINATION_IMAGE:
+      UI_DESTINATION_IMAGE:
         from_secret: ui_image
     volumes:
       - name: digest-folder
         path: /tmp/image-digests
       - name: app-build-dir
         path: /app-build
-  - name: k8s-deploy
+  - name: services-deploy
     image: kameshsampath/kube-dev-tools:v0.0.4
     pull: if-not-present
     commands:
-      - kind get kubeconfig --internal --name=$KIND_CLUSTER_NAME > /apps/.kube/config
-      - kubectl config use-context $KUBECTL_CONTEXT
+      - cd docker
       - export API_IMAGE_DIGEST="$(cat $API_DIGEST_FILE)"
       - export UI_IMAGE_DIGEST="$(cat $UI_DIGEST_FILE)"
-      - echo "API Image $API_IMAGE@$API_IMAGE_DIGEST"
-      - echo "UI Image $UI_IMAGE@$UI_IMAGE_DIGEST"
-      - kubectl config set-context --current --namespace=$APPS_NAMESPACE
-      - kustomize build /drone/src/k8s | envsubst | kubectl apply -f -
-      - "kubectl rollout status --namespace=$APP_NAMESPACE deployment/fruits-api --timeout 30s"
-      - "kubectl rollout status --namespace=$APP_NAMESPACE deployment/fruits-ui --timeout 30s"
+      - echo '' > .env
+      - echo "export COMPOSE_PROJECT_NAME=$${COMPOSE_PROJECT_NAME}" > .env
+      - echo "export FRUITS_API_IMAGE=$${API_IMAGE/kind-registry:5000/localhost:5001}@$API_IMAGE_DIGEST" >> .env
+      - echo "export FRUITS_UI_IMAGE=$${UI_IMAGE/kind-registry:5000/localhost:5001}@$UI_IMAGE_DIGEST" >> .env
+      - cat .env
+      - source .env
+      - docker-compose up -d
+      # - echo '' > .env
     environment:
       API_IMAGE:
         from_secret: api_image

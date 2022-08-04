@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  fruits-api:
+    image: "${FRUITS_API_IMAGE}"
+    ports:
+      - "8080"
+  fruits-ui:
+    depends_on:
+      - fruits-api
+    environment:
+      - FRUITS_API_URI=http://fruits-api:8080/api
+    image: "${FRUITS_UI_IMAGE}"
+    ports:
+      - "3000"
+networks:
+  default:
+    name: "${DOCKER_NETWORK}"
+    external: true
