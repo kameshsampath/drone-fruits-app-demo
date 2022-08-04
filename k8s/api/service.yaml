@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fruits-api
+  labels: &labels
+    app: fruits-api
+spec:
+  selector: *labels
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: NodePort

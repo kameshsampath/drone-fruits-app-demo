@@ -1,0 +1,129 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+# remove this section if your CPU is amd64
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+  - name: java-test
+    image: kameshsampath/drone-java-maven-plugin:v1.0.2
+    pull: if-not-present
+    settings:
+      context_dir: /drone/src/api
+      # log_level: debug
+      # maven_mirror_url:
+      #  from_secret: maven_mirror_url
+      goals:
+        - clean
+        - test
+
+  - name: java-build
+    image: kameshsampath/drone-java-maven-plugin:v1.0.2
+    pull: if-not-present
+    settings:
+      context_dir: /drone/src/api
+      # log_level: debug
+      # maven_mirror_url:
+      #  from_secret: maven_mirror_url
+      goals:
+        - clean
+        - -DskipTests
+        - install
+
+  - name: build-image
+    image: gcr.io/kaniko-project/executor:debug
+    pull: if-not-present
+    environment:
+      SERVICE_ACCOUNT_JSON:
+        from_secret: service_account_json
+      DESTINATION_IMAGE:
+        from_secret: destination_image
+    commands:
+      - echo "$SERVICE_ACCOUNT_JSON" >  "$GOOGLE_APPLICATION_CREDENTIALS"
+      - >
+        /kaniko/executor 
+        --context /drone/src/api 
+        --dockerfile $DOCKERFILE
+        --destination $DESTINATION_IMAGE 
+        --customPlatform=linux/amd64
+        --digest-file=$DIGEST_FILE
+    volumes:
+      - name: digest-folder
+        path: /tmp/image-digests
+
+  - name: config-gcloud-cli
+    image: docker.io/kameshsampath/drone-gcloud-auth:v1.0.0
+    pull: if-not-present
+    settings:
+      google_application_credentials:
+        from_secret: service_account_json
+      google_cloud_project:
+        from_secret: google_cloud_project
+      registries:
+        - asia.gcr.io
+    volumes:
+      - name: gcloud-config
+        path: /home/dev/.config/gcloud
+
+  - name: deploy-api
+    image: kameshsampath/drone-gcloud-run:v1.0.1
+    pull: if-not-present
+    settings:
+      service_account_json:
+        from_secret: service_account_json
+      project:
+        from_secret: google_cloud_project
+      region:
+        from_secret: gcp_region
+      service_name: fruits-api
+      image:
+        from_secret: destination_image
+      image_digest_file: $DIGEST_FILE
+    volumes:
+      - name: gcloud-config
+        path: /home/dev/.config/gcloud
+      - name: digest-folder
+        path: /tmp/image-digests
+      - name: service-info
+        path: /deploy
+
+  - name: create-vercel-environment
+    image: ubuntu
+    commands:
+      - printf "FRUITS_API_URI=%s\n" "$(cat /deploy/service.txt)/api" >> /deploy/app.env
+      - cat /deploy/app.env
+    volumes:
+      - name: service-info
+        path: /deploy
+
+  - name: deploy-ui
+    image: kameshsampath/drone-vercel-deploy:v1.0.1
+    pull: if-not-present
+    settings:
+      vercel_site_dir: /drone/src/ui
+      vercel_token:
+        from_secret: vercel_token
+      vercel_org_id:
+        from_secret: vercel_org_id
+      vercel_project_id:
+        from_secret: vercel_project_id
+      vercel_project_create: true
+      # valid values are development, preview,production
+      vercel_environment: production
+      vercel_environment_variable_file: /deploy/app.env
+      log_level: debug
+    volumes:
+      - name: service-info
+        path: /deploy
+
+volumes:
+  - name: gcloud-config
+    temp: {}
+  - name: digest-folder
+    temp: {}
+  - name: service-info
+    temp: {}

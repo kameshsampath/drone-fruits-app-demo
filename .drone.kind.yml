@@ -1,0 +1,108 @@
+---
+kind: pipeline
+type: docker
+name: default
+
+# remove this section if your CPU is amd64
+platform:
+  os: linux
+  arch: arm64
+
+steps:
+  - name: api-build
+    image: kameshsampath/drone-java-maven-plugin:v1.0.3
+    pull: if-not-present
+    settings:
+      context_dir: /drone/src/api
+      goals:
+        - clean
+        - -DskipTests
+        - install
+  - name: api-image
+    image: gcr.io/kaniko-project/executor:debug
+    pull: if-not-present
+    commands:
+      - >
+        /kaniko/executor 
+        --context /drone/src/api 
+        --dockerfile /drone/src/api/dockerfile
+        --destination $DESTINATION_IMAGE 
+        --customPlatform=linux/amd64
+        --customPlatform=linux/arm64
+        --digest-file=$API_DIGEST_FILE
+        --insecure
+        --skip-tls-verify
+        --cache=true
+        --use-new-run
+    environment:
+      DESTINATION_IMAGE:
+        from_secret: fruits_api_image
+    volumes:
+      - name: digest-folder
+        path: /tmp/image-digests
+  - name: ui-build
+    image: docker.io/node:lts-alpine
+    commands:
+      - apk add --no-cache libc6-compat rsync
+      - cd /app-build
+      - rsync -a /drone/src/ui/ ./ --exclude-from /drone/src/ui/copy-exclude-files.txt
+      - npm ci
+      - npm run build
+    volumes:
+      - name: app-build-dir
+        path: /app-build
+  - name: ui-image
+    image: gcr.io/kaniko-project/executor:debug
+    pull: if-not-present
+    commands:
+      - >
+        /kaniko/executor 
+        --context /app-build
+        --dockerfile /drone/src/ui/docker/Dockerfile
+        --destination $DESTINATION_IMAGE 
+        --customPlatform=linux/amd64
+        --customPlatform=linux/arm64
+        --digest-file=$UI_DIGEST_FILE
+        --insecure
+        --skip-tls-verify
+        --cache=true
+        --use-new-run
+    environment:
+      DESTINATION_IMAGE:
+        from_secret: ui_image
+    volumes:
+      - name: digest-folder
+        path: /tmp/image-digests
+      - name: app-build-dir
+        path: /app-build
+  - name: k8s-deploy
+    image: kameshsampath/kube-dev-tools:v0.0.3
+    pull: if-not-present
+    commands:
+      - kubectl config use-context $KUBECTL_CONTEXT
+      - export API_IMAGE_DIGEST="$(cat $API_DIGEST_FILE)"
+      - export UI_IMAGE_DIGEST="$(cat $UI_DIGEST_FILE)"
+      - echo "API Image $API_IMAGE@$API_IMAGE_DIGEST"
+      - echo "UI Image $UI_IMAGE@$UI_IMAGE_DIGEST"
+      - kubectl config set-context --current --namespace=$APPS_NAMESPACE
+      - kustomize build /drone/src/k8s | envsubst | kubectl apply -f -
+      - "kubectl rollout status --namespace=$APP_NAMESPACE deployment/fruits-api --timeout 30s"
+      - "kubectl rollout status --namespace=$APP_NAMESPACE deployment/fruits-ui --timeout 30s"
+    environment:
+      API_IMAGE:
+        from_secret: api_image
+      UI_IMAGE:
+        from_secret: ui_image
+    volumes:
+      - name: kubeconfig
+        path: /apps/.kube/config
+      - name: digest-folder
+        path: /tmp/image-digests
+volumes:
+  - name: digest-folder
+    temp: {}
+  - name: app-build-dir
+    temp: {}
+  - name: kubeconfig
+    host:
+      path: /Users/kameshs/MyLabs/google-cloud/CCD/gcloud-demo/fruits-app/.kube/config.internal

@@ -1,0 +1,25 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fruits-api
+  labels: &labels
+    app: fruits-api
+spec:
+  selector:
+    # to avoid missing label selectors use YAML aliases
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      containers:
+        - name: fruits-api
+          image: ${API_IMAGE}@${API_IMAGE_DIGEST}
+          imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              memory: "750Mi"
+              cpu: "500m"
+          ports:
+            - containerPort: 8080

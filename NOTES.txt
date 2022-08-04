@@ -1,0 +1,28 @@
+Commands:
+
+drone exec --env-file="${ENV_FILE}" --secret-file="${SECRET_FILE}" .drone.yml --network="${DOCKER_NETWORK}" --trusted
+
+
+drone exec --env-file="${ENV_FILE}" --secret-file="${SECRET_FILE}" .drone.yml --network="${DOCKER_NETWORK}" --trusted --include=api-build --include=api-image
+
+drone exec --env-file="${ENV_FILE}" --secret-file="${SECRET_FILE}" .drone.yml --network="${DOCKER_NETWORK}" --trusted --include=ui-build --include=ui-image
+
+Kind:
+
+Use docker internal context 
+
+kind get kubeconfig --internal --name=ccd-demo-cluster > .kube/config.internal
+
+k port-forward -n demos services/fruits-api :8080
+
+Enable Public Access to API  (only for Demo)
+
+```
+gcloud run services add-iam-policy-binding fruits-api --member="allUsers" --role='roles/run.invoker'
+```
+
+Disable Public Access to API 
+
+```
+gcloud run services remove-iam-policy-binding fruits-api --member='allUsers' --role='roles/run.invoker' --region=asia-south2
+```

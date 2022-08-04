@@ -1,0 +1,11 @@
+.dockerignore
+.editorconfig
+.envrc
+.gitignore
+.tool-versions
+Dockerfile
+README.md
+node_modules
+cache
+.next
+copy-exclude-files.txt

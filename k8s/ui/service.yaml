@@ -1,0 +1,13 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fruits-ui
+  labels: &labels
+    app: fruits-ui
+spec:
+  selector: *labels
+  ports:
+    - port: 3000
+      targetPort: 3000
+  type: NodePort

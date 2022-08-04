@@ -1,0 +1,28 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fruits-ui
+  labels: &labels
+    app: fruits-ui
+spec:
+  selector:
+    # to avoid missing label selectors use YAML anchors
+    matchLabels: *labels
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      containers:
+        - name: fruits-ui
+          image: ${UI_IMAGE}@${UI_IMAGE_DIGEST}
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FRUITS_API_URI
+              value: http://fruits-api:8080/api
+          resources:
+            limits:
+              memory: "250Mi"
+              cpu: "200m"
+          ports:
+            - containerPort: 3000
