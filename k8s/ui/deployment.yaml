@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: fruits-ui
-          image: ${UI_IMAGE}@${UI_IMAGE_DIGEST}
+          image: ${FRUITS_UI_IMAGE}
           imagePullPolicy: IfNotPresent
           env:
             - name: FRUITS_API_URI

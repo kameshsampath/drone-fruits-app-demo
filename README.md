@@ -35,13 +35,13 @@ __NOTE__: The demo sources that we cloned will be referred to as `$DEMO_HOME`
 Create the secret file
 
 ```shell
-cp secret.example my.secret
+cp $DEMO_HOME/secret.example $DEMO_HOME/my.secret
 ```
 
 Edit the `my.secret` and update the value to suit your environment and settings.
 
 ```shell
-export SECRET_FILE=my.secret
+export SECRET_FILE=$DEMO_HOME/my.secret
 ```
 
 ### Environment file
@@ -49,7 +49,7 @@ export SECRET_FILE=my.secret
 Create the secret file
 
 ```shell
-cp .env.example .env
+cp $DEMO_HOME/.env.example $DEMO_HOME/.env
 ```
 
 Edit the `.env` and update the value to suit your environment and settings.
@@ -58,7 +58,30 @@ Edit the `.env` and update the value to suit your environment and settings.
 export ENV_FILE=.env
 ```
 
+Ensure the environment variables set in the current shell,
+
+```shell
+source $ENV_FILE
+```
+
 ## Build and Deploy
+
+### Docker Compose
+
+Start the local registry,
+
+```shell
+$DEMO_HOME/hack/registry.sh
+```
+
+```shell
+export DOCKER_NETWORK=kind
+ln -s $DEMO_HOME/.drone.compose.yml .drone.yml
+```
+
+Once the pipeline completes you should see `fruits-api` and `fruits-ui` services started. Use the Docker Desktop to access the service. Use the `fruits-ui` service to access the service via browser.
+
+### Kubernetes
 
 We can use kind as target Kubernetes cluster that can be used by our pipeline,
 
@@ -66,14 +89,6 @@ Start Kind Cluster
 
 ```shell
 $DEMO_HOME/hack/kind.sh
-```
-
-We need `kubeconfig` that is routable via docker network `kind` to push images to the registry.
-
-Run the following command to retrieve the `kubeconfig`,
-
-```shell
-kind get kubeconfig --internal --name=ccd-demo-cluster > .kube/config.internal
 ```
 
 ```shell
@@ -96,7 +111,17 @@ Run the pipeline
 drone exec --env-file="${ENV_FILE}" --secret-file="${SECRET_FILE}" --network="${DOCKER_NETWORK}" --trusted
 ```
 
-__NOTE__: The drone commands are given for understanding, when using Drone Desktop Docker extension it takes care of running these commmands for you.
+__NOTE__: The drone commands are given for understanding, when using Drone Desktop Docker extension it takes care of running these commands for you.
+
+Once the pipeline is successful do port-forward the Fruits UI service,open a new terminal and run the following command:
+
+```shell
+kubectl port-forward -n $APP_NAMESPACE services/fruits-ui 3000:3000
+```
+
+Open the service on the url <http://localhost:3000>. If all went well you should see the Application UI as shown,
+
+![UI](./docs/images/app.png)
 
 ## Deploy Google Cloud
 
@@ -113,7 +138,6 @@ This section will demonstrate on how to use the drone pipeline to deploy the API
 __WARNING__: The following section is __WIP__
 
 ```shell
-export DOCKER_NETWORK=kind
 ln -s $DEMO_HOME/.drone.gcloud.yml .drone.yml
 ```
 

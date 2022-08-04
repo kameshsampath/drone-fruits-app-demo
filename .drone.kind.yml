@@ -83,8 +83,11 @@ steps:
       - kubectl config use-context $KUBECTL_CONTEXT
       - export API_IMAGE_DIGEST="$(cat $API_DIGEST_FILE)"
       - export UI_IMAGE_DIGEST="$(cat $UI_DIGEST_FILE)"
-      - echo "API Image $API_IMAGE@$API_IMAGE_DIGEST"
-      - echo "UI Image $UI_IMAGE@$UI_IMAGE_DIGEST"
+      - echo '' > /drone/src/k8s/.env
+      - echo "export FRUITS_API_IMAGE=$${API_IMAGE/kind-registry:5000/localhost:5001}@$API_IMAGE_DIGEST" >> /drone/src/k8s/.env
+      - echo "export FRUITS_UI_IMAGE=$${UI_IMAGE/kind-registry:5000/localhost:5001}@$UI_IMAGE_DIGEST" >> /drone/src/k8s/.env
+      - cat /drone/src/k8s/.env
+      - source /drone/src/k8s/.env
       - kubectl config set-context --current --namespace=$APPS_NAMESPACE
       - kustomize build /drone/src/k8s | envsubst | kubectl apply -f -
       - "kubectl rollout status --namespace=$APP_NAMESPACE deployment/fruits-api --timeout 30s"

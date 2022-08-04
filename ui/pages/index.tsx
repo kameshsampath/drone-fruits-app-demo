@@ -5,7 +5,6 @@ import FruitsLoading from '../components/loader';
 import FruitsList from '../components/fruitsList';
 
 const Home: NextPage = () => {
-
   const { fruitsData, isLoading, isError } = FetchFruits();
 
   //console.log(`Fruits Data : ${isError}`);
@@ -24,11 +23,17 @@ const Home: NextPage = () => {
   }
 
   return (
-    <Container >
-      <VStack divider={<StackDivider borderColor="teal.200" />}
+    <Container>
+      <VStack
+        divider={<StackDivider borderColor="teal.200" />}
         spacing={4}
-        align="stretch">
-        <Heading as="h1" size="2xl" mb="2">
+        align="stretch"
+      >
+        <Heading
+          as="h1"
+          size="2xl"
+          mb="2"
+        >
           Fruits App
         </Heading>
         <FruitsList fruits={fruitsData.fruits} />

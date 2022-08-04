@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: fruits-api
-          image: ${API_IMAGE}@${API_IMAGE_DIGEST}
+          image: ${FRUITS_API_IMAGE}
           imagePullPolicy: IfNotPresent
           resources:
             limits:
