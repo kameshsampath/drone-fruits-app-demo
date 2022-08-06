@@ -1,7 +1,7 @@
 ---
 kind: pipeline
 type: docker
-name: clean-compose-services
+name: compose
 platform:
   os: linux
   arch: arm64
@@ -23,11 +23,22 @@ volumes:
 ---
 kind: pipeline
 type: docker
-name: clean-kind
+name: k8s
 platform:
   os: linux
   arch: arm64
 steps:
+  - name: k8s-undeploy
+    image: kameshsampath/kube-dev-tools:v0.0.4
+    pull: if-not-present
+    commands:
+      - kind get kubeconfig --internal --name=$KIND_CLUSTER_NAME > /apps/.kube/config
+      - kubectl config use-context $KUBECTL_CONTEXT
+      - kubectl config set-context --current --namespace=$APPS_NAMESPACE
+      - kustomize build /drone/src/k8s | envsubst | kubectl delete -f -
+    volumes:
+      - name: dockersock
+        path: /var/run/docker.sock
   - name: delete kind cluster
     image: kameshsampath/kube-dev-tools:v0.0.4
     commands:
@@ -43,5 +54,4 @@ volumes:
   - name: dockersock
     host:
       path: /var/run/docker.sock
----
 ## TODO add google cloud cleanup

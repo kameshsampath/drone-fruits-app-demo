@@ -16,6 +16,7 @@ steps:
       context_dir: /drone/src/api
       goals:
         - clean
+        - -q
         - -DskipTests
         - install
   - name: api-image
